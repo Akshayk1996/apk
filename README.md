@@ -6,7 +6,7 @@ This repository provides a CLI agent-style proposal generator for mutual fund ad
 
 - Captures a complete risk-profiling questionnaire (as requested).
 - Scores the client into Conservative / Moderate / Aggressive bands.
-- Fetches live scheme/NAV data from AMFI public feed (`NAVAll.txt`).
+- Fetches scheme/NAV data from AMFI public feed with resilient fallback.
 - Suggests risk-aligned fund buckets and SIP allocations.
 - Produces a client-ready Markdown proposal that can be exported to PDF.
 
@@ -28,10 +28,11 @@ python3 proposal_agent.py --input-json sample_client.json --output proposal.md
 
 You can then convert markdown to PDF with any preferred tool (Pandoc, Typora, VS Code extension, etc.).
 
-## AMFI source
+## AMFI source and fallback
 
-The script uses AMFI's public endpoint:
+The script first tries live AMFI endpoints:
 
 - https://www.amfiindia.com/spages/NAVAll.txt
+- https://portal.amfiindia.com/spages/NAVAll.txt
 
-It filters for **Direct Growth** schemes and picks category-relevant options based on the risk band.
+If both are blocked (common in restricted network environments), it auto-falls back to `data/amfi_sample_nav.txt` so proposal generation still succeeds.

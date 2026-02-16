@@ -4,7 +4,7 @@
 Creates a client-ready markdown proposal using:
 1) Risk-profiling questionnaire responses
 2) Goal and investment amount
-3) Live AMFI mutual fund scheme data
+3) AMFI mutual fund scheme data (online with offline fallback)
 """
 
 from __future__ import annotations
@@ -15,12 +15,21 @@ import datetime as dt
 import json
 import re
 import sys
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-AMFI_NAV_URL = "https://www.amfiindia.com/spages/NAVAll.txt"
+AMFI_NAV_URLS = [
+    "https://www.amfiindia.com/spages/NAVAll.txt",
+    "https://portal.amfiindia.com/spages/NAVAll.txt",
+]
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (compatible; ProposalAgent/1.0)",
+    "Accept": "text/plain,*/*;q=0.8",
+}
+LOCAL_AMFI_FALLBACK = Path("data/amfi_sample_nav.txt")
 
 
 @dataclass
@@ -55,6 +64,20 @@ def _prompt(label: str) -> str:
     return value
 
 
+def _prompt_float(label: str) -> float:
+    while True:
+        raw = _prompt(label).replace(",", "")
+        try:
+            value = float(raw)
+        except ValueError:
+            print("Please enter a valid number (example: 25000 or 25000.50).")
+            continue
+        if value <= 0:
+            print("Please enter an amount greater than 0.")
+            continue
+        return value
+
+
 def capture_client_profile() -> ClientProfile:
     print("\n=== Client Risk Profiling Intake ===\n")
     return ClientProfile(
@@ -78,7 +101,7 @@ def capture_client_profile() -> ClientProfile:
         has_health_insurance=_prompt("Do you have a Health Insurance (Yes/No)"),
         has_term_insurance=_prompt("Do you have a Term Insurance (Yes/No)"),
         has_personal_accidental_insurance=_prompt("Do you have a Accidental personal Insurance (Yes/No)"),
-        monthly_investment_amount_inr=float(_prompt("Monthly SIP investment amount (INR)")),
+        monthly_investment_amount_inr=_prompt_float("Monthly SIP investment amount (INR)"),
     )
 
 
@@ -149,14 +172,11 @@ def score_risk(profile: ClientProfile) -> Tuple[int, str]:
     return score, band
 
 
-def fetch_amfi_nav_data() -> List[Dict[str, str]]:
-    with urllib.request.urlopen(AMFI_NAV_URL, timeout=20) as response:
-        text = response.read().decode("utf-8", errors="ignore")
-
+def _parse_amfi_nav_text(text: str) -> List[Dict[str, str]]:
     rows = []
-    reader = csv.reader(text.splitlines(), delimiter=';')
-
+    reader = csv.reader(text.splitlines(), delimiter=";")
     current_category = ""
+
     for cols in reader:
         if len(cols) == 1:
             candidate = cols[0].strip()
@@ -170,10 +190,8 @@ def fetch_amfi_nav_data() -> List[Dict[str, str]]:
         scheme_name = cols[3].strip()
         nav = cols[4].strip()
         date = cols[5].strip()
-
         if not scheme_name or not nav or not date:
             continue
-
         if "direct" not in scheme_name.lower() or "growth" not in scheme_name.lower():
             continue
 
@@ -192,11 +210,33 @@ def fetch_amfi_nav_data() -> List[Dict[str, str]]:
     return rows
 
 
+def fetch_amfi_nav_data() -> Tuple[List[Dict[str, str]], str]:
+    errors: List[str] = []
+    for url in AMFI_NAV_URLS:
+        request = urllib.request.Request(url, headers=DEFAULT_HEADERS)
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                text = response.read().decode("utf-8", errors="ignore")
+            parsed = _parse_amfi_nav_text(text)
+            if parsed:
+                return parsed, f"Live AMFI feed ({url})"
+            errors.append(f"{url}: received empty/invalid data")
+        except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+            errors.append(f"{url}: {exc}")
+
+    if LOCAL_AMFI_FALLBACK.exists():
+        parsed = _parse_amfi_nav_text(LOCAL_AMFI_FALLBACK.read_text(encoding="utf-8"))
+        if parsed:
+            return parsed, f"Local fallback snapshot ({LOCAL_AMFI_FALLBACK})"
+
+    raise RuntimeError("AMFI fetch failed. " + " | ".join(errors))
+
+
 def pick_recommended_funds(risk_band: str, nav_data: List[Dict[str, str]]) -> Dict[str, List[Dict[str, str]]]:
     category_map = {
         "Conservative": ["Liquid", "Ultra Short", "Corporate Bond", "Banking and PSU", "Short Duration", "Hybrid Debt"],
         "Moderate": ["Large Cap", "Flexi Cap", "Balanced Advantage", "Aggressive Hybrid", "Corporate Bond", "Multi Asset"],
-        "Aggressive": ["Large Cap", "Flexi Cap", "Mid Cap", "Small Cap", "Index Funds", "ELSS"],
+        "Aggressive": ["Large Cap", "Flexi Cap", "Mid Cap", "Small Cap", "Index", "ELSS"],
     }
 
     selected_keywords = category_map[risk_band]
@@ -217,16 +257,8 @@ def pick_recommended_funds(risk_band: str, nav_data: List[Dict[str, str]]) -> Di
 
 def sip_allocation(risk_band: str, monthly_amount: float) -> Dict[str, float]:
     weights = {
-        "Conservative": {
-            "Debt / Liquid": 0.55,
-            "Hybrid": 0.30,
-            "Equity": 0.15,
-        },
-        "Moderate": {
-            "Debt": 0.30,
-            "Hybrid": 0.30,
-            "Equity": 0.40,
-        },
+        "Conservative": {"Debt / Liquid": 0.55, "Hybrid": 0.30, "Equity": 0.15},
+        "Moderate": {"Debt": 0.30, "Hybrid": 0.30, "Equity": 0.40},
         "Aggressive": {
             "Large & Flexi Cap": 0.40,
             "Mid & Small Cap": 0.35,
@@ -234,11 +266,17 @@ def sip_allocation(risk_band: str, monthly_amount: float) -> Dict[str, float]:
             "Debt / Liquid": 0.10,
         },
     }
-
     return {bucket: round(monthly_amount * wt, 2) for bucket, wt in weights[risk_band].items()}
 
 
-def proposal_markdown(profile: ClientProfile, risk_score: int, risk_band: str, allocations: Dict[str, float], funds: Dict[str, List[Dict[str, str]]]) -> str:
+def proposal_markdown(
+    profile: ClientProfile,
+    risk_score: int,
+    risk_band: str,
+    allocations: Dict[str, float],
+    funds: Dict[str, List[Dict[str, str]]],
+    data_source_note: str,
+) -> str:
     today = dt.date.today().isoformat()
     age = "N/A"
     try:
@@ -254,7 +292,6 @@ def proposal_markdown(profile: ClientProfile, risk_score: int, risk_band: str, a
         insurance_gaps.append("Term Insurance")
     if _normalize(profile.has_personal_accidental_insurance) != "yes":
         insurance_gaps.append("Personal Accidental Insurance")
-
     insurance_note = "All key insurances in place." if not insurance_gaps else f"Protection gap identified: {', '.join(insurance_gaps)}"
 
     lines = [
@@ -272,6 +309,7 @@ def proposal_markdown(profile: ClientProfile, risk_score: int, risk_band: str, a
         f"- Return expectation: {profile.expected_returns}",
         f"- Current investable surplus: {profile.investable_income_pct}",
         f"- Income stability: {profile.income_stability}",
+        f"- Investor style statement: {profile.investor_statement}",
         "",
         "## 2) Risk Profiling Outcome",
         f"- Risk score: **{risk_score}**",
@@ -282,14 +320,13 @@ def proposal_markdown(profile: ClientProfile, risk_score: int, risk_band: str, a
         "## 3) Suggested Monthly SIP Allocation",
         f"- Total monthly SIP: **₹{profile.monthly_investment_amount_inr:,.2f}**",
     ]
-
     for bucket, value in allocations.items():
         lines.append(f"- {bucket}: **₹{value:,.2f}**")
 
-    lines.extend(["", "## 4) AMFI Data-backed Scheme Suggestions", "_Source: AMFI NAVAll public feed (Direct Growth plans filtered)._", ""])
+    lines.extend(["", "## 4) AMFI Data-backed Scheme Suggestions", f"_Source: {data_source_note} (Direct Growth plans filtered)._", ""])
 
     if not funds:
-        lines.append("No schemes matched filter criteria from current AMFI snapshot. Re-run later or refine category matching.")
+        lines.append("No schemes matched filter criteria from current AMFI dataset. Re-run later or refine category matching.")
     else:
         for category, schemes in funds.items():
             lines.append(f"### {category}")
@@ -343,15 +380,15 @@ def main() -> int:
     risk_score, risk_band = score_risk(profile)
 
     try:
-        nav_data = fetch_amfi_nav_data()
+        nav_data, source_note = fetch_amfi_nav_data()
     except Exception as exc:
-        print(f"Warning: failed to fetch AMFI data: {exc}", file=sys.stderr)
-        nav_data = []
+        print(f"Warning: failed to fetch AMFI data and fallback snapshot: {exc}", file=sys.stderr)
+        nav_data, source_note = [], "Unavailable in current environment"
 
     recommendations = pick_recommended_funds(risk_band, nav_data) if nav_data else {}
     allocations = sip_allocation(risk_band, profile.monthly_investment_amount_inr)
 
-    content = proposal_markdown(profile, risk_score, risk_band, allocations, recommendations)
+    content = proposal_markdown(profile, risk_score, risk_band, allocations, recommendations, source_note)
     args.output.write_text(content, encoding="utf-8")
     print(f"Proposal generated at: {args.output}")
     return 0
