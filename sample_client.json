@@ -1,0 +1,23 @@
+{
+  "email_address": "client@example.com",
+  "name": "Aarav Mehta",
+  "date_of_birth": "1990-04-18",
+  "whatsapp_no": "+91-9876543210",
+  "primary_investment_objective": "Long-term wealth creation",
+  "expected_investment_time_horizon": "10+ years",
+  "expected_returns": "12-14% CAGR",
+  "drawdown_reaction": "Hold and invest more during correction",
+  "equity_exposure": "Around 40%",
+  "investable_income_pct": "25%",
+  "active_investing_duration": "5 years",
+  "income_stability": "Very stable salaried income",
+  "emergency_fund_status": "Yes",
+  "loan_obligations": "Manageable home loan",
+  "investor_statement": "I can handle moderate volatility for better returns",
+  "most_important_goal": "Retirement corpus",
+  "client_declaration": "I confirm the details shared are true and complete.",
+  "has_health_insurance": "Yes",
+  "has_term_insurance": "Yes",
+  "has_personal_accidental_insurance": "No",
+  "monthly_investment_amount_inr": 50000
+}

@@ -1,0 +1,25 @@
+Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date
+Open Ended Schemes ( Equity Scheme - Large Cap Fund )
+118989;INF109K01Z48;INF109K01Z63;ICICI Prudential Bluechip Fund - Direct Plan - Growth;102.45;14-Feb-2026
+120503;INF204K01W66;INF204K01W74;Nippon India Large Cap Fund - Direct Plan Growth Plan;88.12;14-Feb-2026
+Open Ended Schemes ( Equity Scheme - Mid Cap Fund )
+125497;INF179K01BE3;INF179K01BF0;HDFC Mid-Cap Opportunities Fund - Direct Plan - Growth Option;164.39;14-Feb-2026
+125354;INF200K01T51;INF200K01T69;SBI Magnum Midcap Fund - Direct Plan - Growth;196.22;14-Feb-2026
+Open Ended Schemes ( Equity Scheme - Small Cap Fund )
+118551;INF846K01EW9;INF846K01EX7;Axis Small Cap Fund - Direct Plan - Growth;98.11;14-Feb-2026
+122639;INF174K01LS1;INF174K01LT9;Kotak Small Cap Fund - Direct Plan - Growth;240.05;14-Feb-2026
+Open Ended Schemes ( Debt Scheme - Corporate Bond Fund )
+119551;INF760K01FB5;INF760K01FC3;Mirae Asset Corporate Bond Fund - Direct Plan Growth;15.63;14-Feb-2026
+122100;INF200K01RS4;INF200K01RT2;SBI Corporate Bond Fund - Direct Plan - Growth;31.05;14-Feb-2026
+Open Ended Schemes ( Debt Scheme - Liquid Fund )
+118834;INF209K01XH9;INF209K01XI7;Aditya Birla Sun Life Liquid Fund - Direct Plan - Growth;398.51;14-Feb-2026
+120987;INF194K01UZ9;INF194K01VA3;Kotak Liquid Fund - Direct Plan - Growth;4832.90;14-Feb-2026
+Open Ended Schemes ( Equity Scheme - ELSS )
+120716;INF754K01PF0;INF754K01PG8;L&T ELSS Tax Saver Fund - Direct Plan - Growth;131.55;14-Feb-2026
+125494;INF179K01BC7;INF179K01BD5;HDFC ELSS Tax saver - Direct Plan - Growth Option;1056.78;14-Feb-2026
+Open Ended Schemes ( Hybrid Scheme - Aggressive Hybrid Fund )
+120828;INF090I01AJ5;INF090I01AK3;Franklin India Equity Hybrid Fund - Direct Plan - Growth;203.10;14-Feb-2026
+118648;INF174K01BL6;INF174K01BM4;Kotak Equity Hybrid Fund - Direct Plan - Growth;83.26;14-Feb-2026
+Open Ended Schemes ( Equity Scheme - Flexi Cap Fund )
+118703;INF109K01YT1;INF109K01YU9;ICICI Prudential Flexicap Fund - Direct Plan - Growth;84.17;14-Feb-2026
+125354;INF247L01AN1;INF247L01AO9;Parag Parikh Flexi Cap Fund - Direct Plan - Growth;79.48;14-Feb-2026
